@@ -10,6 +10,7 @@ app.get('/test', async (req, res) => {
     console.log('launching browser...');
     browser = await puppeteer.launch({
       headless: 'new',
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
       args: [
         '--no-sandbox',
         '--disable-setuid-sandbox',
@@ -21,7 +22,6 @@ app.get('/test', async (req, res) => {
 
     const page = await browser.newPage();
 
-    // 模擬真實瀏覽器
     await page.setUserAgent(
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36'
     );
@@ -29,10 +29,8 @@ app.get('/test', async (req, res) => {
     const targetUrl = req.query.url || 'https://daskio.de5.net/forum/api/v1';
     console.log(`navigating to ${targetUrl}`);
 
-    // 訪問頁面，等最多 30 秒讓 CF challenge 完成
     await page.goto(targetUrl, { waitUntil: 'networkidle2', timeout: 30000 });
 
-    // 等一下看 CF 有沒有跳轉
     await page.waitForFunction(
       () => !document.title.includes('Just a moment'),
       { timeout: 15000 }
@@ -42,11 +40,9 @@ app.get('/test', async (req, res) => {
     const title = await page.title();
     const status = title.includes('Just a moment') ? 'BLOCKED' : 'PASSED';
 
-    // 拿 cookies
     const cookies = await page.cookies();
     const cfCookie = cookies.find(c => c.name === 'cf_clearance');
 
-    // 拿頁面內容（前 500 字）
     const body = await page.evaluate(() => document.body.innerText.slice(0, 500));
 
     const result = {
